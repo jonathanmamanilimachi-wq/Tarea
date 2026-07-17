@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+    <!-- Librerías para Renderizado 3D e Interactividad -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaShield SCADA v2.0 - Multi-Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- CABECERA SCADA -->
+    <header>
+        <div class="logo-container">
+            <h1>AQUASHIELD // INTEGRATED SCADA</h1>
+            <p>SISTEMA DE ANÁLISIS ACÚSTICO MULTI-PANEL // PROTOTIPO 2026</p>
+        </div>
+        <div class="status-panel">
+            <span>SYS_LINK: </span>
+            <span id="estado-conexion" class="estado offline">OFFLINE</span>
+        </div>
+    </header>
+
+    <!-- MENÚ DE NAVEGACIÓN ENTRE PÁGINAS -->
+    <nav class="scada-nav">
+        <button class="nav-btn active" onclick="cambiarPagina('inicio')">01 // INICIO</button>
+        <button class="nav-btn" onclick="cambiarPagina('telemetria')">02 // TELEMETRÍA</button>
+        <button class="nav-btn" onclick="cambiarPagina('diagnostico')">03 // DIAGNÓSTICO</button>
+        <button class="nav-btn" onclick="cambiarPagina('ai')">04 // PREDICCIÓN AI</button>
+    </nav>
+
+    <!-- BANNER GLOBAL DE SEÑALES -->
+    <div id="alerta-banner" class="banner seguro">
+        SISTEMA INICIALIZADO. ESPERANDO TELEMETRÍA...
+    </div>
+
+    <main class="main-container">
+
+        <!-- ==========================================================================
+             PÁGINA 1: INICIO (ESTADO GENERAL DEL SISTEMA)
+             ========================================================================== -->
+        <div id="pag-inicio" class="tab-content active">
+            <div class="inicio-grid">
+                
+                <!-- Tarjeta 1: Estado Operativo -->
+                <div class="card-metricas">
+                    <h2>ESTADO OPERATIVO CENTRAL</h2>
+                    <div class="indicador-central">
+                        <span id="status-general-texto" class="texto-normal">SISTEMA NOMINAL</span>
+                    </div>
+                    <div class="metrica-item" style="margin-top: 15px;">
+                        <span class="label">Presión de Red:</span>
+                        <span id="presion-simulada" class="valor-metrica text-cyan">45.2 PSI</span>
+                    </div>
+                    <div class="metrica-item">
+                        <span class="label">Bomba de Simulación:</span>
+                        <span id="bomba-estado-texto" class="valor-metrica text-red">APAGADA</span>
+                    </div>
+                </div>
+                
+                <!-- Tarjeta 2: Resumen Técnico -->
+                <div class="card-metricas">
+                    <h2>MÉTRICAS CLAVE DE SENSORES</h2>
+                    <div class="metrica-item">
+                        <span class="label">Transductores Activos:</span>
+                        <span id="num-sensores-ok" class="valor-metrica text-cyan">6/6</span>
+                    </div>
+                    <div class="metrica-item">
+                        <span class="label">Tasa de Filtrado:</span>
+                        <span class="valor-metrica">10 Muestras (Promedio)</span>
+                    </div>
+                    <div class="metrica-item">
+                        <span class="label">Umbral de Resonancia:</span>
+                        <span class="valor-metrica" style="color: var(--accent-red);">350 Hz</span>
+                    </div>
+                    <div class="metrica-item">
+                        <span class="label">Tensión de Entrada:</span>
+                        <span class="valor-metrica text-cyan">5.00 VDC</span>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 3: LEYENDA TÉCNICA (NUEVO) -->
+                <div class="card-metricas card-leyenda">
+                    <h2>Simbología de Señales y Alarmas</h2>
+                    <div class="leyenda-grid">
+                        <div class="leyenda-item">
+                            <span class="color-dot dot-cyan"></span>
+                            <div class="leyenda-texto">
+                                <strong>VECTOR NOMINAL (CIAN)</strong>
+                                <p>Sensor activo. Frecuencias acústicas estables por debajo de 350 Hz (Sin fugas).</p>
+                            </div>
+                        </div>
+                        <div class="leyenda-item">
+                            <span class="color-dot dot-green"></span>
+                            <div class="leyenda-texto">
+                                <strong>SISTEMA SEGURO (VERDE)</strong>
+                                <p>Estado general del SCADA nominal. No se registran incidentes ni fallos eléctricos.</p>
+                            </div>
+                        </div>
+                        <div class="leyenda-item">
+                            <span class="color-dot dot-yellow"></span>
+                            <div class="leyenda-texto">
+                                <strong>FALLA DE IMPEDANCIA (AMARILLO)</strong>
+                                <p>Sensor desconectado (1023 Hz) o en cortocircuito (0 Hz). Error de alimentación.</p>
+                            </div>
+                        </div>
+                        <div class="leyenda-item">
+                            <span class="color-dot dot-red"></span>
+                            <div class="leyenda-texto">
+                                <strong>RESONANCIA CRÍTICA (ROJO)</strong>
+                                <p>Fuga detectada (Lectura > 350 Hz). El sector parpadea e inicia protocolo de alerta.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="bienvenida-panel">
+                <h3>MANUAL OPERATIVO DE CONSOLA</h3>
+                <p>Bienvenido al software de seguridad AquaShield v2.0. Este panel unifica la telemetría de transductores acústicos distribuidos en la propiedad. Utilice la barra superior para alternar entre el mapeo vectorial en tiempo real, las pruebas de impedancia del circuito de autodiagnóstico y la red neuronal de correlación de vectores.</p>
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             PÁGINA 2: TELEMETRÍA (GEMELO DIGITAL 3D INTERACTIVO)
+             ========================================================================== -->
+        <div id="pag-telemetria" class="tab-content">
+            <div class="telemetria-3d-layout">
+                
+                <!-- Lienzo 3D -->
+                <div class="canvas-card">
+                    <div class="canvas-header">
+                        <h2>VISTA AXONOMÉTRICA HOLOGRÁFICA (GEMELO DIGITAL)</h2>
+                        <span class="control-tip">🖱️ Clic izquierdo para rotar | Clic derecho para desplazar | Rueda para Zoom</span>
+                    </div>
+                    <!-- Aquí se renderizará el modelo 3D -->
+                    <div id="canvas-3d-container"></div>
+                </div>
+
+                <!-- Panel de Estado Lateral -->
+                <div class="panel-lateral-3d">
+                    <h2>ESTADO DE RED VECTORIAL</h2>
+                    <div id="habitaciones-lista-3d">
+                        <!-- Se generará dinámicamente con JS para estar sincronizado -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             PÁGINA 3: CONTROL DE SENSORES (AUTODIAGNÓSTICO EN DETALLE)
+             ========================================================================== -->
+        <div id="pag-diagnostico" class="tab-content">
+            <h2>DIAGNÓSTICO ELÉCTRICO DE SENSORES</h2>
+            <div class="diagnostico-tabla">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>IDENTIFICADOR</th>
+                            <th>HABITACIÓN</th>
+                            <th>PIN FÍSICO</th>
+                            <th>VOLTAJE DETECTADO</th>
+                            <th>IMPEDANCIA (ESTIMADA)</th>
+                            <th>ESTADO DE ALIMENTACIÓN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-diagnostico-cuerpo">
+                        <!-- Rellenado dinámicamente por JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+       <!-- ==========================================================================
+             PÁGINA 4: AI (MODELO DE PREDICCIÓN CON FICHA TÉCNICA)
+             ========================================================================== -->
+        <div id="pag-ai" class="tab-content">
+            <div class="ai-layout">
+                
+                <!-- Tarjeta 1: Medidor de Predicción -->
+                <div class="ai-card prediction-box">
+                    <h2>RED NEURONAL PREDICTIVA (VIRTUAL)</h2>
+                    <div class="gauge-container">
+                        <div class="gauge-value" id="ai-porcentaje">0%</div>
+                        <div class="gauge-label">PROBABILIDAD DE ANOMALÍA</div>
+                    </div>
+                    <div class="ai-status" id="ai-diagnostico-analisis">
+                        SISTEMA ESTABLE // ANÁLISIS DE RESIDUOS NOMINAL
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2: Consola Terminal en Tiempo Real -->
+                <div class="ai-card neural-stats">
+                    <h2>LOG DE RAZONAMIENTO HEURÍSTICO</h2>
+                    <div class="terminal-log" id="ai-log">
+                        [SYS_INIT] Cargando parámetros neuronales...<br>
+                        [SYS_READY] Monitoreo heurístico en línea.<br>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 3: EXPLICACIÓN DEL MODELO PARA EXPOSICIÓN (NUEVO) -->
+                <div class="ai-card ai-explanation-card">
+                    <h2>FICHA TÉCNICA: ALGORITMO DE DETECCIÓN MULTICAPA</h2>
+                    <div class="algorithm-steps">
+                        <div class="step-box">
+                            <span class="step-num">01</span>
+                            <div class="step-desc">
+                                <strong>FILTRADO DIGITAL (Media Móvil)</strong>
+                                <p>Elimina el ruido blanco y picos transitorios (como golpes o pisadas) promediando las últimas 10 muestras analógicas de cada sector.</p>
+                            </div>
+                        </div>
+                        <div class="step-box">
+                            <span class="step-num">02</span>
+                            <div class="step-desc">
+                                <strong>ANÁLISIS DE UMBRAL DE RESONANCIA</strong>
+                                <p>Evalúa si la frecuencia acústica supera el umbral crítico (>350 Hz). Las fugas de fluidos a presión generan un siseo constante en este espectro.</p>
+                            </div>
+                        </div>
+                        <div class="step-box">
+                            <span class="step-num">03</span>
+                            <div class="step-desc">
+                                <strong>CORRELACIÓN ESPACIAL (Filtro Inteligente)</strong>
+                                <p>La vibración de una fuga real viaja por la tubería común. El modelo verifica si las habitaciones contiguas también reportan un aumento sutil de ruido acústico.</p>
+                            </div>
+                        </div>
+                        <div class="step-box">
+                            <span class="step-num">04</span>
+                            <div class="step-desc">
+                                <strong>MAPPING SIGMOIDAL DE PROBABILIDAD</strong>
+                                <p>Convierte la lectura del transductor ADC (0-1023) en un porcentaje real (0-100%) ponderando +10% de peso de confianza si los vecinos confirman la correlación.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <p>AQUASHIELD // SCADA MULTI-PANEL v2.0 // MAQUETA PROTOTIPO 2026</p>
+    </footer>
+
+    <!-- Primero cargamos las librerías 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Al final, cargamos tu lógica de control -->
+    <script src="panelweb.js"></script>
+</body>
+</html>

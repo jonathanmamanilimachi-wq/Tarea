@@ -1,0 +1,635 @@
+/* ==========================================================================
+   1. VARIABLES DE DISEÑO & RESET
+   ========================================================================== */
+:root {
+    --blueprint-dark: #050814;
+    --blueprint-grid: #0d1630;
+    --accent-blue: #00f0ff;
+    --accent-red: #ff0055;
+    --accent-yellow: #ffaa00;
+    --accent-green: #00ff66;
+    --bg-card: rgba(13, 22, 48, 0.4);
+    --font-mono: 'Courier New', Courier, monospace;
+    --font-sans: 'Segoe UI', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--blueprint-dark);
+    color: #cbd5e1;
+    overflow-x: hidden;
+}
+
+/* ==========================================================================
+   2. HEADER & BARRA DE NAVEGACIÓN (TABS DE CONTROL)
+   ========================================================================== */
+header {
+    background-color: #02040a;
+    border-bottom: 1px solid #111e3d;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-container h1 {
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--accent-blue);
+    letter-spacing: 1.5px;
+}
+
+.logo-container p {
+    font-size: 0.7rem;
+    color: #4a5d7e;
+    letter-spacing: 0.5px;
+}
+
+.status-panel {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+/* Barra de Navegación Industrial */
+.scada-nav {
+    display: flex;
+    background-color: #02040a;
+    border-bottom: 2px solid #111e3d;
+    padding: 0 1rem;
+}
+
+.nav-btn {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: #4a5d7e;
+    background: none;
+    border: none;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-btn:hover {
+    color: #cbd5e1;
+    background-color: rgba(0, 240, 255, 0.02);
+}
+
+.nav-btn.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+    background-color: rgba(0, 240, 255, 0.05);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+/* ==========================================================================
+   3. SISTEMA DE REVELADO DE "PÁGINAS"
+   ========================================================================== */
+.tab-content {
+    display: none; /* Oculta la página si no está activa */
+}
+
+.tab-content.active {
+    display: block; /* Muestra la página activa */
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Banner Global */
+.banner {
+    font-family: var(--font-mono);
+    padding: 0.8rem;
+    text-align: center;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+}
+
+.banner.seguro { background-color: rgba(0, 240, 255, 0.03); color: var(--accent-blue); border-color: var(--accent-blue); }
+.banner.advertencia { background-color: rgba(255, 170, 0, 0.03); color: var(--accent-yellow); border-color: var(--accent-yellow); }
+.banner.peligro { background-color: rgba(255, 0, 85, 0.03); color: var(--accent-red); border-color: var(--accent-red); }
+
+/* ==========================================================================
+   4. PÁGINA 1: INICIO (ESTADO GENERAL)
+   ========================================================================== */
+.inicio-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.card-metricas {
+    background-color: var(--bg-card);
+    border: 1px solid #1c3562;
+    padding: 1.5rem;
+    border-radius: 4px;
+}
+
+.card-metricas h2 {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    color: #6482b4;
+    border-bottom: 1px solid #111e3d;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.indicador-central {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(0, 240, 255, 0.2);
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+}
+
+.indicador-central .texto-normal { color: var(--accent-green); text-shadow: 0 0 10px rgba(0, 255, 102, 0.3); }
+.indicador-central .texto-peligro { color: var(--accent-red); text-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
+.indicador-central .texto-diagnostico { color: var(--accent-yellow); text-shadow: 0 0 10px rgba(255, 170, 0, 0.3); }
+
+.metrica-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+    font-family: var(--font-mono);
+}
+
+.valor-metrica { font-weight: bold; }
+.text-cyan { color: var(--accent-blue); }
+.text-red { color: var(--accent-red); }
+
+.bienvenida-panel {
+    background-color: rgba(13, 22, 48, 0.1);
+    border: 1px solid #1c3562;
+    padding: 1.5rem;
+    border-radius: 4px;
+}
+
+.bienvenida-panel h3 {
+    font-family: var(--font-mono);
+    color: #6482b4;
+    margin-bottom: 0.5rem;
+}
+
+.bienvenida-panel p {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   5. PÁGINA 2: TELEMETRÍA (ESTILO BLUEPRINT INTEGRADO)
+   ========================================================================== */
+.telemetria-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 1.5rem;
+}
+
+.house-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 180px);
+    gap: 10px;
+    background-color: var(--blueprint-dark);
+    background-size: 20px 20px;
+    background-image: 
+        linear-gradient(to right, rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+    border: 1px dashed rgba(0, 240, 255, 0.15);
+    padding: 10px;
+}
+
+.room-box {
+    background-color: var(--bg-card);
+    border: 1px solid #1e3a6a;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.room-title { font-family: var(--font-mono); font-size: 0.75rem; font-weight: bold; color: #94a3b8; }
+.room-dim { font-family: var(--font-mono); font-size: 0.65rem; color: #475569; }
+.reading-value { font-family: var(--font-mono); font-size: 2rem; color: var(--accent-blue); }
+.reading-unit { font-family: var(--font-mono); font-size: 0.7rem; color: #4a5d7e; }
+
+/* Efecto Fuga */
+.room-box.fuga-alerta {
+    border-color: var(--accent-red);
+    background-color: rgba(255, 0, 85, 0.04);
+    animation: pulseRed 1.5s infinite;
+}
+.room-box.fuga-alerta .reading-value { color: var(--accent-red); }
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0.3); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 0, 85, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0); }
+}
+
+/* Efecto Desconexión */
+.room-box.diagnostico-error {
+    border: 1px dashed var(--accent-yellow);
+    background-color: rgba(255, 170, 0, 0.02);
+}
+.room-box.diagnostico-error .reading-value { color: var(--accent-yellow); opacity: 0.4; }
+
+.control-bomba-panel {
+    background-color: var(--bg-card);
+    border: 1px solid #1c3562;
+    padding: 1.5rem;
+    border-radius: 4px;
+}
+
+.control-bomba-panel h3 { font-family: var(--font-mono); font-size: 0.9rem; margin-bottom: 0.5rem; color: #6482b4; }
+.control-bomba-panel p { font-size: 0.75rem; color: #4a5d7e; margin-bottom: 1rem; }
+
+.button-group { display: flex; flex-direction: column; gap: 8px; }
+.btn {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 0.8rem;
+    border: 1px solid #1c3562;
+    background-color: #030611;
+    color: #4a5d7e;
+    cursor: pointer;
+    text-align: center;
+}
+#btn-bomba-on.active { background-color: rgba(0, 240, 255, 0.1); color: var(--accent-blue); border-color: var(--accent-blue); }
+#btn-bomba-off.active { background-color: rgba(255, 0, 85, 0.1); color: var(--accent-red); border-color: var(--accent-red); }
+
+/* ==========================================================================
+   6. PÁGINA 3: DIAGNÓSTICO (TABLA DE CONTROL DE ENERGÍA)
+   ========================================================================== */
+.diagnostico-tabla {
+    margin-top: 1.5rem;
+    border: 1px solid #1c3562;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #1c3562;
+}
+
+th {
+    background-color: #030611;
+    color: #6482b4;
+    text-transform: uppercase;
+}
+
+tbody tr:hover {
+    background-color: rgba(0, 240, 255, 0.02);
+}
+
+.status-tag {
+    font-weight: bold;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+}
+.status-tag.ok { color: var(--accent-green); background-color: rgba(0, 255, 102, 0.05); }
+.status-tag.error { color: var(--accent-yellow); background-color: rgba(255, 170, 0, 0.05); }
+
+/* ==========================================================================
+   7. PÁGINA 4: AI PREDICCIÓN & LOG TERMINAL
+   ========================================================================== */
+.ai-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.ai-card {
+    background-color: var(--bg-card);
+    border: 1px solid #1c3562;
+    padding: 1.5rem;
+}
+
+.ai-card h2 {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    color: #6482b4;
+    border-bottom: 1px solid #111e3d;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.gauge-container {
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    background-color: rgba(2, 4, 10, 0.5);
+    margin-bottom: 1rem;
+}
+
+.gauge-value {
+    font-family: var(--font-mono);
+    font-size: 3.5rem;
+    color: var(--accent-blue);
+    text-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.gauge-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #4a5d7e;
+    letter-spacing: 1px;
+}
+
+.ai-status {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 0.5rem;
+    background-color: #030611;
+    border: 1px solid #111e3d;
+}
+
+.terminal-log {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background-color: #02040a;
+    border: 1px solid #1c3562;
+    padding: 1rem;
+    height: 180px;
+    overflow-y: auto;
+    color: #8da4c4;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   8. ESTRUCTURA DE LA APP & FOOTER
+   ========================================================================== */
+.main-container {
+    max-width: 1400px;
+    margin: 1.5rem auto;
+    padding: 0 1.5rem;
+}
+
+footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: #334155;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
+    border-top: 1px solid #111e3d;
+    margin-top: 2.5rem;
+}
+/* ==========================================================================
+   NUEVOS ESTILOS: LEYENDA TÉCNICA DE ALARMAS
+   ========================================================================== */
+.inicio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); /* Hace que el diseño se adapte si la pantalla es chica */
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.card-leyenda {
+    grid-column: span 1; /* Se integra perfectamente como una tarjeta más */
+}
+
+.leyenda-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.leyenda-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 6px;
+    border-bottom: 1px solid rgba(28, 53, 98, 0.3);
+}
+
+.leyenda-item:last-child {
+    border-bottom: none; /* Quita la línea al último elemento */
+}
+
+/* Indicadores de color con efecto Glow (Brillo) */
+.color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.dot-cyan {
+    background-color: var(--accent-blue);
+    box-shadow: 0 0 8px var(--accent-blue);
+}
+
+.dot-green {
+    background-color: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+}
+
+.dot-yellow {
+    background-color: var(--accent-yellow);
+    box-shadow: 0 0 8px var(--accent-yellow);
+}
+
+.dot-red {
+    background-color: var(--accent-red);
+    box-shadow: 0 0 8px var(--accent-red);
+    animation: alertPulseMini 1s infinite alternate;
+}
+
+.leyenda-texto strong {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    display: block;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.leyenda-texto p {
+    font-size: 0.7rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+@keyframes alertPulseMini {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+/* ==========================================================================
+   NUEVOS ESTILOS: EXPLICACIÓN MODELO AI
+   ========================================================================== */
+.ai-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Hace que la tarjeta explicativa ocupe todo el ancho de la rejilla */
+.ai-explanation-card {
+    grid-column: span 2;
+    background-color: rgba(13, 22, 48, 0.2) !important;
+    border: 1px dashed rgba(0, 240, 255, 0.2) !important;
+}
+
+.algorithm-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.step-box {
+    background-color: #02040a;
+    border: 1px solid #111e3d;
+    padding: 1rem;
+    position: relative;
+    border-radius: 4px;
+}
+
+.step-num {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: rgba(0, 240, 255, 0.15);
+    position: absolute;
+    top: 5px;
+    right: 10px;
+}
+
+.step-desc strong {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    display: block;
+    margin-bottom: 5px;
+    letter-spacing: 0.5px;
+}
+
+.step-desc p {
+    font-size: 0.7rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+@media (max-width: 1000px) {
+    .ai-explanation-card {
+        grid-column: span 1;
+    }
+}
+/* ==========================================================================
+   INTERFAZ DEL MODELO 3D (TELEMETRÍA)
+   ========================================================================== */
+.telemetria-3d-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 1.5rem;
+    height: 70vh;
+}
+
+.canvas-card {
+    background-color: rgba(6, 11, 25, 0.5);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.canvas-header {
+    padding: 12px 20px;
+    background-color: rgba(2, 4, 10, 0.8);
+    border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.canvas-header h2 {
+    font-size: 0.85rem;
+    margin: 0;
+    color: var(--accent-blue);
+}
+
+.control-tip {
+    font-size: 0.65rem;
+    color: #64748b;
+    font-family: var(--font-mono);
+}
+
+#canvas-3d-container {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+#canvas-3d-container:active {
+    cursor: grabbing;
+}
+
+/* Panel Lateral de Estado */
+.panel-lateral-3d {
+    background-color: rgba(2, 4, 10, 0.5);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    border-radius: 6px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.panel-lateral-3d h2 {
+    font-size: 0.85rem;
+    margin-top: 0;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.item-estado-3d {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(13, 22, 48, 0.2);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-blue);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+/* Clases dinámicas de estado para los bordes del panel lateral */
+.item-estado-3d.normal { border-left-color: var(--accent-blue); }
+.item-estado-3d.alerta { border-left-color: var(--accent-red); animation: alertBorderPulse 1s infinite alternate; }
+.item-estado-3d.error { border-left-color: var(--accent-yellow); }
+
+@keyframes alertBorderPulse {
+    from { border-left-color: rgba(255, 0, 85, 0.4); }
+    to { border-left-color: var(--accent-red); }
+}
