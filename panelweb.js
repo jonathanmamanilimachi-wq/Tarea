@@ -452,7 +452,7 @@ function enviarMensajeWhatsApp(mensaje) {
 }
 
 // ==========================================================================
-// 🌐 MOTOR GRÁFICO 3D (GEMELO DIGITAL HOLOGRÁFICO ESCALA 1:1)
+// 🌐 MOTOR GRÁFICO 3D (GEMELO DIGITAL CON ENTRADAS ABIERTAS Y PLACAS AL FRENTE)
 // ==========================================================================
 function inicializarEntorno3D() {
     try {
@@ -464,7 +464,6 @@ function inicializarEntorno3D() {
             return;
         }
 
-        // Aseguramos altura para evitar contenedor colapsado
         if (container.clientHeight === 0) {
             container.style.height = "550px";
             container.style.minHeight = "450px";
@@ -474,11 +473,11 @@ function inicializarEntorno3D() {
         // 1. Crear Escena con fondo Gris Acero Técnico
         scene3d = new THREE.Scene();
         scene3d.background = new THREE.Color(0x1e2530); 
-        scene3d.fog = new THREE.Fog(0x1e2530, 80, 250); // Niebla lineal suave
+        scene3d.fog = new THREE.Fog(0x1e2530, 80, 250);
 
-        // 2. Configurar Cámara
+        // 2. Configurar Cámara (Ajustada en Z para encuadrar la nueva posición de la casa)
         camera3d = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera3d.position.set(45, 42, 52); 
+        camera3d.position.set(45, 42, 72); 
 
         // 3. Configurar Renderizador
         renderer3d = new THREE.WebGLRenderer({ antialias: true });
@@ -487,13 +486,13 @@ function inicializarEntorno3D() {
         container.innerHTML = ""; 
         container.appendChild(renderer3d.domElement);
 
-        // 4. Controles de Cámara
+        // 4. Controles de Cámara (Target desplazado a Z=10 para centrar la casa)
         if (THREE.OrbitControls) {
             controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
             controls3d.enableDamping = true;
             controls3d.dampingFactor = 0.05;
             controls3d.maxPolarAngle = Math.PI / 2 - 0.05;
-            controls3d.target.set(0, 5, -10); 
+            controls3d.target.set(0, 5, 10); 
         }
 
         // 5. Iluminación
@@ -511,13 +510,11 @@ function inicializarEntorno3D() {
         platform.position.set(0, -0.25, 0); 
         scene3d.add(platform);
 
-        // Grid técnico adaptado
         const gridHelper = new THREE.GridHelper(60, 30, 0x00f0ff, 0x3a485c);
         gridHelper.position.set(0, 0.05, 0);
         scene3d.add(gridHelper);
 
-        // 7. Base Elevada de la casa (60x40 cm, altura 7 cm)
-        // 🌟 SOLUCIÓN AL BUG DE TRANSPARENCIA: depthWrite = false evita tapar las tuberías
+        // 7. [DETALLE 3] Base Elevada de la casa (Desplazada hacia el fondo Z=10 para liberar el frente)
         const baseGeo = new THREE.BoxGeometry(60, 7, 40);
         const baseMat = new THREE.MeshPhongMaterial({
             color: 0x111a2e,
@@ -527,21 +524,21 @@ function inicializarEntorno3D() {
             depthWrite: false 
         });
         const houseBase = new THREE.Mesh(baseGeo, baseMat);
-        houseBase.position.set(0, 3.5, -10);
+        houseBase.position.set(0, 3.5, 10);
         scene3d.add(houseBase);
 
         const baseEdges = new THREE.EdgesGeometry(baseGeo);
         const baseWire = new THREE.LineSegments(baseEdges, new THREE.LineBasicMaterial({ color: 0x00d2ff }));
         houseBase.add(baseWire);
 
-        // 8. Zona Electrónica Dedicada (60x20 cm, al fondo)
+        // 8. [DETALLE 3] Zona Electrónica Dedicada colocada AL FRENTE (Z = -20)
         const pcbGeo = new THREE.BoxGeometry(60, 0.2, 20);
         const pcbMat = new THREE.MeshPhongMaterial({ color: 0x0b1d12, shininess: 40 }); 
         const pcb = new THREE.Mesh(pcbGeo, pcbMat);
-        pcb.position.set(0, 0.1, 20);
+        pcb.position.set(0, 0.1, -20);
         scene3d.add(pcb);
 
-        // --- ARDUINO UNO ---
+        // --- ARDUINO UNO EN EL FRENTE ---
         const arduinoGroup = new THREE.Group();
         const boardUno = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 7), new THREE.MeshPhongMaterial({ color: 0x00558f }));
         arduinoGroup.add(boardUno);
@@ -556,10 +553,10 @@ function inicializarEntorno3D() {
         arduinoGroup.add(ledUno);
         chipLeds.push(ledUno);
 
-        arduinoGroup.position.set(-20, 0.5, 22); 
+        arduinoGroup.position.set(-20, 0.5, -18); 
         scene3d.add(arduinoGroup);
 
-        // --- ESP32 ---
+        // --- ESP32 EN EL FRENTE ---
         const espGroup = new THREE.Group();
         const boardEsp = new THREE.Mesh(new THREE.BoxGeometry(7, 0.4, 4.5), new THREE.MeshPhongMaterial({ color: 0x111111 }));
         espGroup.add(boardEsp);
@@ -571,47 +568,45 @@ function inicializarEntorno3D() {
         espGroup.add(ledEsp);
         chipLeds.push(ledEsp);
 
-        espGroup.position.set(-5, 0.5, 22); 
+        espGroup.position.set(-5, 0.5, -18); 
         scene3d.add(espGroup);
 
-        // 9. FUNCIÓN AUXILIAR: ETIQUETAS DE TEXTO HD
+        // 9. FUNCCIÓN AUXILIAR: ETIQUETAS DE TEXTO HD
         function crearEtiquetaTexto(texto) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 512;
             canvas.height = 128;
-
             ctx.fillStyle = 'rgba(10, 14, 22, 0.9)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             ctx.strokeStyle = '#00f0ff';
             ctx.lineWidth = 6;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
             ctx.font = 'bold 44px monospace';
             ctx.fillStyle = '#00f0ff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
-            ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
-            ctx.shadowBlur = 6;
-            
             ctx.fillText(texto, canvas.width / 2, canvas.height / 2);
 
             const texture = new THREE.CanvasTexture(canvas);
-            texture.needsUpdate = true;
-
             const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
             const sprite = new THREE.Sprite(spriteMaterial);
-            
             sprite.scale.set(12, 3, 1);
             return sprite;
         }
 
-        // 10. CONSTRUCCIÓN DE PISOS HOLOGRÁFICOS DE HABITACIONES
-        // 🌟 SOLUCIÓN AL BUG DE TRANSPARENCIA: depthWrite = false
+        // 10. RE-MAPEO DE HABITACIONES (+20 EN EL EJE Z)
+        const NUEVA_CONFIG_HABITACIONES = {
+            cocina:      { cx: -21, cz: 21,   w: 18, d: 18, name: "Cocina" },
+            dormitorio1: { cx: 0,   cz: 21,   w: 24, d: 18, name: "Dormitorio 1" },
+            bano:        { cx: 21,  cz: 21,   w: 18, d: 18, name: "Baño" },
+            comedor:     { cx: -17, cz: -2.5, w: 26, d: 15, name: "Comedor" },
+            living:      { cx: 4,   cz: -2.5, w: 16, d: 15, name: "Living" },
+            dormitorio2: { cx: 21,  cz: -2.5, w: 18, d: 15, name: "Dormitorio 2" }
+        };
+
         HABITACIONES.forEach(hab => {
-            const cfg = CONFIG_HABITACIONES[hab.id];
+            const cfg = NUEVA_CONFIG_HABITACIONES[hab.id];
             if (!cfg) return;
 
             const geometry = new THREE.BoxGeometry(cfg.w, 0.2, cfg.d);
@@ -631,20 +626,12 @@ function inicializarEntorno3D() {
             etiqueta.position.set(cfg.cx, 26, cfg.cz);
             scene3d.add(etiqueta);
 
-            meshesHabitaciones[hab.id] = {
-                mesh: mesh,
-                etiqueta: etiqueta
-            };
+            meshesHabitaciones[hab.id] = { mesh: mesh, etiqueta: etiqueta };
         });
 
-        // 11. CONSTRUCCIÓN ESTRUCTURAL DE MUROS SÓLIDOS
-        // 🌟 SOLUCIÓN AL BUG DE TRANSPARENCIA: depthWrite = false en muros semi-transparentes
+        // 11. CONSTRUCCIÓN DE MUROS AJUSTADOS
         const wallMat = new THREE.MeshPhongMaterial({
-            color: 0x0f1522, 
-            transparent: true,
-            opacity: 0.85,
-            shininess: 30,
-            depthWrite: false 
+            color: 0x0f1522, transparent: true, opacity: 0.85, shininess: 30, depthWrite: false 
         });
         const wallWireMat = new THREE.LineBasicMaterial({ color: 0x3a4f6e });
 
@@ -653,38 +640,39 @@ function inicializarEntorno3D() {
             const mesh = new THREE.Mesh(geo, wallMat);
             mesh.position.set(x, y, z);
             scene3d.add(mesh);
-
             const edges = new THREE.EdgesGeometry(geo);
             const wire = new THREE.LineSegments(edges, wallWireMat);
             mesh.add(wire);
         }
 
-        // Muros Perimetrales Exteriores
-        construirMuro(60, 15, 0.4, 0, 14.5, 10);      
-        construirMuro(0.4, 15, 40, -30, 14.5, -10);    
-        construirMuro(0.4, 15, 40, 30, 14.5, -10);     
+        // Muros Perimetrales Exteriores (Desplazados +20 en Z)
+        construirMuro(60, 15, 0.4, 0, 14.5, 30);      // Fondo posterior
+        construirMuro(0.4, 15, 40, -30, 14.5, 10);    // Lateral Izquierdo
+        construirMuro(0.4, 15, 40, 30, 14.5, 10);     // Lateral Derecho
         
-        // Muro delantero con Entrada Principal en el Comedor
-        construirMuro(4, 15, 0.4, -28, 14.5, -30);     
-        construirMuro(52, 15, 0.4, 4, 14.5, -30);      
+        // Muro delantero frente a las placas con la entrada principal
+        construirMuro(4, 15, 0.4, -28, 14.5, -10);     
+        construirMuro(52, 15, 0.4, 4, 14.5, -10);      
 
-        // Muro divisorio Fila Trasera / Pasillo (Z = -8)
-        construirMuro(7, 15, 0.4, -26.5, 14.5, -8);    
-        construirMuro(17, 15, 0.4, -10.5, 14.5, -8);   
-        construirMuro(17, 15, 0.4, 10.5, 14.5, -8);    
-        construirMuro(7, 15, 0.4, 26.5, 14.5, -8);     
+        // Muros divisorios de Pasillos (Z = 12 y Z = 5)
+        // [DETALLE 1] Removido muro de entrada a cocina. Solo se deja la sección de Dormitorio 1 y Baño
+        construirMuro(10, 15, 0.4, -7, 14.5, 12);     // Cubre lado izquierdo de Dormitorio 1
+        construirMuro(17, 15, 0.4, 10.5, 14.5, 12);   // Cubre lado derecho de Dormitorio 1 e inicio Baño
+        construirMuro(7, 15, 0.4, 26.5, 14.5, 12);    // Fondo del baño
 
-        // Muro divisorio Fila Delantera / Pasillo (Z = -15) (Comedor libre)
-        construirMuro(6, 15, 0.4, -1, 14.5, -15);      
-        construirMuro(13, 15, 0.4, 12.5, 14.5, -15);   
-        construirMuro(7, 15, 0.4, 26.5, 14.5, -15);    
+        // [DETALLE 1] Removida pared de entrada al Living en Z=5 para unificar con Comedor y Cocina
+        construirMuro(13, 15, 0.4, 12.5, 14.5, 5);    
+        construirMuro(7, 15, 0.4, 26.5, 14.5, 5);     
 
         // Muros divisorios Transversales
-        construirMuro(0.4, 15, 18, -12, 14.5, 1);      
-        construirMuro(0.4, 15, 12, 12, 14.5, 1);       
-        construirMuro(0.4, 15, 15, 12, 14.5, -22.5);   
+        construirMuro(0.4, 15, 18, -12, 14.5, 21);    // Entre Cocina y Dormitorio 1
+        
+        // [DETALLE 2] Reparado el muro divisorio entre Dormitorio 1 y Baño. Longitud extendida a 18 (completo de extremo a extremo)
+        construirMuro(0.4, 15, 18, 12, 14.5, 21);     
+        
+        construirMuro(0.4, 15, 15, 12, 14.5, -2.5);   // Entre Living y Dormitorio 2
 
-        // 12. MODELADO DE LAS PUERTAS
+        // 12. MODELADO DE LAS PUERTAS ACTIVAS
         function crearPuertaEnMuro(x, z, rotY, esPrincipal = false) {
             const pGroup = new THREE.Group();
             const colorMarco = esPrincipal ? 0xff9900 : 0x00f0ff;
@@ -700,16 +688,8 @@ function inicializarEntorno3D() {
                 new THREE.MeshPhongMaterial({ color: colorHoja, transparent: true, opacity: 0.65, depthWrite: false })
             );
 
-            // 💡 SOLUCIÓN A LA PUERTA AL REVÉS:
-            // Ajustamos el pivote y abrimos en ángulo negativo (-1.2) para que se abra
-            // hacia el interior de la casa, orientándose con elegancia hacia el Arduino (izquierda).
-            if (esPrincipal) {
-                hoja.position.set(-1.9, 5, 0); 
-                hoja.rotation.y = -1.2;        
-            } else {
-                hoja.position.set(-1.9, 5, 0); 
-                hoja.rotation.y = 0.8;         
-            }
+            hoja.position.set(-1.9, 5, 0); 
+            hoja.rotation.y = esPrincipal ? -1.2 : 0.8;         
             pGroup.add(hoja);
 
             pGroup.position.set(x, 7, z);
@@ -717,48 +697,43 @@ function inicializarEntorno3D() {
             scene3d.add(pGroup);
         }
 
-        crearPuertaEnMuro(-24, -30, 0, true);   // Puerta principal en Comedor
-        crearPuertaEnMuro(-21, -8, 0);         
-        crearPuertaEnMuro(0, -8, 0);           
-        crearPuertaEnMuro(21, -8, 0);          
-        crearPuertaEnMuro(4, -15, 0);          
-        crearPuertaEnMuro(21, -15, 0);         
+        // [DETALLE 3] Puerta principal reubicada en Z=-10 mirando directamente al frente hacia el Arduino
+        crearPuertaEnMuro(-24, -10, 0, true);   
+        
+        // Puertas internas de espacios cerrados independientes
+        crearPuertaEnMuro(0, 12, 0);           // Dormitorio 1
+        crearPuertaEnMuro(21, 12, 0);          // Baño
+        crearPuertaEnMuro(21, 5, 0);           // Dormitorio 2
 
-        // 13. TRAZADO DE TUBERÍA GLOWING
+        // 13. TRAZADO DE TUBERÍA GLOWING (Ajustado +20 en Z)
         const pipePoints = [
-            { x: -28, y: 3.5, z: -25 },   
-            { x: 28,  y: 3.5, z: -25 },   
-            { x: 28,  y: 3.5, z: 1 },     
-            { x: 29.5, y: 3.5, z: 1 },    
-            { x: 29.5, y: 15,  z: 1 },    
-            { x: 29.5, y: 15,  z: 5 },    
-            { x: 29.5, y: 3.5, z: 5 },    
-            { x: 28,  y: 3.5, z: 5 },     
-            { x: -28, y: 3.5, z: 5 },     
-            { x: -29.5, y: 3.5, z: 5 },   
-            { x: -29.5, y: 15,  z: 5 },   
-            { x: -29.5, y: 15,  z: 1 },   
-            { x: -29.5, y: 3.5, z: 1 },   
-            { x: -28,  y: 3.5, z: 1 },    
-            { x: -30,  y: 3.5, z: 1 }     
+            { x: -28, y: 3.5, z: -5 },   
+            { x: 28,  y: 3.5, z: -5 },   
+            { x: 28,  y: 3.5, z: 21 },     
+            { x: 29.5, y: 3.5, z: 21 },    
+            { x: 29.5, y: 15,  z: 21 },    
+            { x: 29.5, y: 15,  z: 25 },    
+            { x: 29.5, y: 3.5, z: 25 },    
+            { x: 28,  y: 3.5, z: 25 },     
+            { x: -28, y: 3.5, z: 25 },     
+            { x: -29.5, y: 3.5, z: 25 },   
+            { x: -29.5, y: 15,  z: 25 },   
+            { x: -29.5, y: 15,  z: 21 },   
+            { x: -29.5, y: 3.5, z: 21 },   
+            { x: -28,  y: 3.5, z: 21 },    
+            { x: -30,  y: 3.5, z: 21 }     
         ];
 
-        // 🌟 SOLUCIÓN AL TRANSPARENCY BUG: renderOrder = 2
-        // Esto le dice a WebGL que dibuje las tuberías DESPUÉS de pintar las paredes transparentes.
         function crearTubo(p1, p2, colorHex) {
             const v1 = new THREE.Vector3(p1.x, p1.y, p1.z);
             const v2 = new THREE.Vector3(p2.x, p2.y, p2.z);
             const distance = v1.distanceTo(v2);
             const geometry = new THREE.CylinderGeometry(0.35, 0.35, distance, 8);
             const material = new THREE.MeshPhongMaterial({
-                color: colorHex,
-                emissive: colorHex,
-                emissiveIntensity: 0.6,
-                transparent: true,
-                opacity: 0.85
+                color: colorHex, emissive: colorHex, emissiveIntensity: 0.6, transparent: true, opacity: 0.85
             });
             const cylinder = new THREE.Mesh(geometry, material);
-            cylinder.renderOrder = 2; // Fuerza a dibujarse siempre por encima de las capas transparentes
+            cylinder.renderOrder = 2; 
             
             const position = v2.clone().add(v1).multiplyScalar(0.5);
             cylinder.position.copy(position);
@@ -774,7 +749,7 @@ function inicializarEntorno3D() {
                 new THREE.SphereGeometry(0.45, 8, 8),
                 new THREE.MeshPhongMaterial({ color: colorHex, emissive: colorHex, emissiveIntensity: 0.6 })
             );
-            sphere.renderOrder = 2; // Forzamos orden de renderizado
+            sphere.renderOrder = 2; 
             sphere.position.set(pos.x, pos.y, pos.z);
             scene3d.add(sphere);
             pipeMeshes.push(sphere);
@@ -786,7 +761,7 @@ function inicializarEntorno3D() {
         }
         crearCodo(pipePoints[pipePoints.length - 1], 0x00f0ff);
 
-        // 14. INSTALACIÓN DE SENSORES FÍSICOS
+        // 14. INSTALACIÓN DE SENSORES FÍSICOS (Ajustado +20 en Z)
         function crearModuloSensor(habId, x, y, z) {
             const sGroup = new THREE.Group();
             const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 1.5), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
@@ -798,17 +773,16 @@ function inicializarEntorno3D() {
             led.position.y = 0.55;
             sGroup.add(led);
             sensorLedMeshes[habId] = led;
-
             sGroup.position.set(x, y, z);
             scene3d.add(sGroup);
         }
 
-        crearModuloSensor("comedor", -17, 3.5, -25);
-        crearModuloSensor("living", 4, 3.5, -25);
-        crearModuloSensor("dormitorio2", 21, 3.5, -25);
-        crearModuloSensor("bano", 29.5, 15, 3);       
-        crearModuloSensor("dormitorio1", 0, 3.5, 5);
-        crearModuloSensor("cocina", -29.5, 15, 3);     
+        crearModuloSensor("comedor", -17, 3.5, -5);
+        crearModuloSensor("living", 4, 3.5, -5);
+        crearModuloSensor("dormitorio2", 21, 3.5, -5);
+        crearModuloSensor("bano", 29.5, 15, 23);       
+        crearModuloSensor("dormitorio1", 0, 3.5, 25);
+        crearModuloSensor("cocina", -29.5, 15, 23);     
 
         // 15. LOOP DE ANIMACIÓN Y RENDERIZADO
         function animate() {
@@ -849,7 +823,6 @@ function inicializarEntorno3D() {
         }
         animate();
 
-        // Auto-adaptación dinámica a cambios de ventana o visibilidad
         window.addEventListener("resize", () => {
             if (!container || !camera3d || !renderer3d) return;
             const w = container.clientWidth || 800;
@@ -859,12 +832,11 @@ function inicializarEntorno3D() {
             renderer3d.setSize(w, h);
         });
 
-        console.log("[3D-ENGINE] Gemelo Digital corregido listo.");
+        console.log("[3D-ENGINE] Modelo optimizado y reubicado con éxito.");
     } catch (error) {
         console.error("[3D-ENGINE-ERROR]", error);
     }
 }
-
 // ==========================================================================
 // 🚀 REGISTRO GLOBAL E INICIALIZACIÓN UNIFICADA
 // ==========================================================================

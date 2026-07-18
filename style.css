@@ -633,3 +633,67 @@ footer {
     from { border-left-color: rgba(255, 0, 85, 0.4); }
     to { border-left-color: var(--accent-red); }
 }
+
+/* ==========================================================================
+   📱 RESPONSIVIDAD TOTAL PARA DISPOSITIVOS MÓVILES (SMARTPHONES)
+   ========================================================================== */
+@media screen and (max-width: 768px) {
+    /* Forzamos a que las columnas de la App se apilen de forma vertical */
+    .dashboard-container, 
+    .main-layout, 
+    .grid-paneles {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        padding: 10px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Ajustamos el menú de navegación superior para pantallas táctiles */
+    .nav-bar {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+
+    .nav-btn {
+        width: 45% !important; /* Los botones se acomodan en pares */
+        text-align: center;
+        padding: 10px 5px !important;
+        font-size: 13px !important;
+    }
+
+    /* Redimensionamos el contenedor del Gemelo Digital 3D para celulares */
+    #canvas-3d-container {
+        height: 350px !important; /* Un tamaño cómodo para manipular con los dedos */
+        min-height: 300px !important;
+        width: 100% !important;
+        margin-bottom: 15px;
+    }
+
+    /* La lista lateral de habitaciones se moverá abajo del mapa 3D */
+    .sidebar-lista, 
+    #habitaciones-lista-3d {
+        width: 100% !important;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Ajuste de tablas técnicas (como la de diagnósticos) para evitar desborde */
+    .table-container {
+        width: 100% !important;
+        overflow-x: auto !important; /* Permite scroll horizontal fluido solo en la tabla */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px !important; /* Evita que las celdas colapsen entre sí */
+    }
+
+    /* Escalado menor de los títulos principales */
+    h1, .banner {
+        font-size: 16px !important;
+        text-align: center !important;
+        padding: 12px !important;
+    }
+}
