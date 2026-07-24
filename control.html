@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMI SCADA - Station Control & Inyección de Eventos</title>
+    <style>
+        :root {
+            --scada-bg: #06090e;
+            --panel-bg: #0d1520;
+            --panel-border: #1e2d42;
+            --header-bg: #111c2e;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --cyan-scada: #00f0ff;
+            --green-ok: #00ff66;
+            --red-alarm: #ff0044;
+            --yellow-warn: #ffb700;
+            --orange-vcc: #ff6600;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Consolas', 'Courier New', monospace, sans-serif;
+        }
+
+        body {
+            background-color: var(--scada-bg);
+            color: var(--text-main);
+            padding: 12px;
+            min-height: 100vh;
+        }
+
+        /* BARRA SUPERIOR SCADA */
+        header.scada-header {
+            background: var(--header-bg);
+            border: 1px solid var(--cyan-scada);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+            padding: 10px 15px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .scada-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--cyan-scada);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scada-title::before {
+            content: "■";
+            color: var(--cyan-scada);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .scada-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.8rem;
+        }
+
+        .led-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #444;
+            box-shadow: inset 0 0 3px #000;
+        }
+
+        .led-online { background: var(--green-ok); box-shadow: 0 0 8px var(--green-ok); }
+        .led-offline { background: var(--red-alarm); box-shadow: 0 0 8px var(--red-alarm); }
+
+        /* SECCIONES Y PANELES */
+        .scada-section-label {
+            font-size: 0.75rem;
+            color: var(--cyan-scada);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin: 12px 0 6px 2px;
+            border-left: 3px solid var(--cyan-scada);
+            padding-left: 6px;
+        }
+
+        .panel-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* BANDERAS Y MANDOS GLOBALES */
+        .master-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+        }
+
+        .btn-scada {
+            background: #162235;
+            color: var(--text-main);
+            border: 1px solid var(--panel-border);
+            padding: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 3px;
+            transition: all 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .btn-scada:hover {
+            border-color: var(--cyan-scada);
+            background: #1c2d47;
+        }
+
+        .btn-scada:active { transform: translateY(1px); }
+
+        .btn-scada.btn-ok { border-color: var(--green-ok); color: var(--green-ok); }
+        .btn-scada.btn-alarm { border-color: var(--red-alarm); color: var(--red-alarm); }
+        .btn-scada.btn-warn { border-color: var(--yellow-warn); color: var(--yellow-warn); }
+        .btn-scada.btn-pump { border-color: var(--cyan-scada); color: var(--cyan-scada); }
+
+        /* MATRIZ DE TRANSDUCTORES (ZONAS) */
+        .zones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+
+        .zone-card {
+            background: #0f1926;
+            border: 1px solid var(--panel-border);
+            border-top: 2px solid var(--cyan-scada);
+            padding: 10px;
+            border-radius: 3px;
+        }
+
+        .zone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed var(--panel-border);
+            padding-bottom: 5px;
+        }
+
+        .zone-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .zone-val {
+            font-size: 0.8rem;
+            color: var(--cyan-scada);
+            background: #06090e;
+            padding: 2px 6px;
+            border: 1px solid var(--panel-border);
+            border-radius: 2px;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .btn-action {
+            padding: 6px;
+            font-size: 0.68rem;
+            border: 1px solid var(--panel-border);
+            background: #141f30;
+            color: var(--text-main);
+            cursor: pointer;
+            border-radius: 2px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .btn-action:hover { background: #1f304a; }
+        .btn-action.act-ok { color: var(--green-ok); }
+        .btn-action.act-fuga { color: var(--red-alarm); }
+        .btn-action.act-gnd { color: var(--yellow-warn); }
+        .btn-action.act-vcc { color: var(--orange-vcc); }
+
+        /* SCADA TERMINAL LOG */
+        .scada-terminal {
+            background: #030508;
+            border: 1px solid var(--panel-border);
+            color: var(--green-ok);
+            font-size: 0.72rem;
+            height: 110px;
+            overflow-y: auto;
+            padding: 8px;
+            border-radius: 3px;
+        }
+
+        .term-line { margin-bottom: 3px; }
+        .term-time { color: var(--text-muted); }
+        .term-cmd { color: var(--cyan-scada); }
+    </style>
+</head>
+<body>
+
+    <!-- CABECERA SCADA -->
+    <header class="scada-header">
+        <div class="scada-title">
+            HMI SCADA v4.2 - INYECCIÓN DE EVENTOS HIL
+        </div>
+        <div class="scada-status">
+            <span>RELOJ: <span id="scada-clock" style="color:var(--cyan-scada)">00:00:00</span></span>
+            <span>BUS WS: <span id="led-ws" class="led-indicator"></span> <strong id="txt-ws">OFFLINE</strong></span>
+        </div>
+    </header>
+
+    <!-- MANDOS GENERALES -->
+    <div class="scada-section-label">01. Comandos Maestros de Estación</div>
+    <div class="panel-box master-controls">
+        <button class="btn-scada btn-ok" onclick="enviar('PRESET:RESET')">
+            <span>🟢 NOMINAL</span>
+            <small style="font-size:0.6rem; opacity:0.8">RESET ZONAS</small>
+        </button>
+        <button class="btn-scada btn-alarm" onclick="enviar('PRESET:MULTI_FUGA')">
+            <span>🚨 MULTI-FUGA</span>
+            <small style="font-size:0.6rem; opacity:0.8">3 SECTORES</small>
+        </button>
+        <button class="btn-scada btn-warn" onclick="enviar('PRESET:FALLA_GENERAL')">
+            <span>⚡ FALLA VCC</span>
+            <small style="font-size:0.6rem; opacity:0.8">CORTO BUS 5V</small>
+        </button>
+        <button class="btn-scada btn-pump" onclick="enviar('P1')">
+            <span>💧 ACT. BOMBA</span>
+            <small style="font-size:0.6rem; opacity:0.8">RELÉ ON</small>
+        </button>
+        <button class="btn-scada" onclick="enviar('P0')">
+            <span>🚫 PARO BOMBA</span>
+            <small style="font-size:0.6rem; opacity:0.8">RELÉ OFF</small>
+        </button>
+    </div>
+
+    <!-- MATRIZ DE MATRIZ DE ZONAS -->
+    <div class="scada-section-label">02. Matriz de Transductores por Sector (Simulación RAW)</div>
+    <div class="zones-grid" id="contenedor-zonas"></div>
+
+    <!-- TERMINAL DE AUDITORÍA -->
+    <div class="scada-section-label">03. Registro de Eventos y Telemetría Enviada</div>
+    <div class="scada-terminal" id="terminal-log">
+        <div class="term-line"><span class="term-time">[SYS_INIT]</span> Consola SCADA lista. Esperando conexión WebSocket...</div>
+    </div>
+
+    <script>
+        // ⚠️ INGRESA LA IP DE TU ESP32 REGISTRADA EN EL MONITOR SERIE:
+        const ESP32_IP = "10.183.179.148"; 
+        const WS_URL = `ws://${ESP32_IP}:81`;
+        let socket;
+
+        const HABITACIONES = [
+            { id: 0, nombre: "ZONA 01: COCINA" },
+            { id: 1, nombre: "ZONA 02: COMEDOR" },
+            { id: 2, nombre: "ZONA 03: DORMITORIO 1" },
+            { id: 3, nombre: "ZONA 04: LIVING" },
+            { id: 4, nombre: "ZONA 05: BAÑO" },
+            { id: 5, nombre: "ZONA 06: DORMITORIO 2" }
+        ];
+
+        // Estado local simulado para lectura visual rápida
+        let estadoLocal = [20, 20, 20, 20, 20, 20];
+
+        function conectarWS() {
+            socket = new WebSocket(WS_URL);
+
+            socket.onopen = () => {
+                document.getElementById("led-ws").className = "led-indicator led-online";
+                document.getElementById("txt-ws").innerText = "ONLINE";
+                document.getElementById("txt-ws").style.color = "var(--green-ok)";
+                logTerminal("CONEXIÓN ESTABLECIDA CON ESP32 BUS :: WS PORT 81");
+            };
+
+            socket.onclose = () => {
+                document.getElementById("led-ws").className = "led-indicator led-offline";
+                document.getElementById("txt-ws").innerText = "OFFLINE";
+                document.getElementById("txt-ws").style.color = "var(--red-alarm)";
+                logTerminal("CONEXIÓN PERDIDA. REINTENTANDO EN 3 SEG...");
+                setTimeout(conectarWS, 3000);
+            };
+        }
+
+        function renderizarZonas() {
+            const container = document.getElementById("contenedor-zonas");
+            let html = "";
+
+            HABITACIONES.forEach(hab => {
+                html += `
+                    <div class="zone-card">
+                        <div class="zone-header">
+                            <span class="zone-title">${hab.nombre}</span>
+                            <span class="zone-val" id="val-zone-${hab.id}">RAW: ${estadoLocal[hab.id]}</span>
+                        </div>
+                        <div class="action-grid">
+                            <button class="btn-action act-ok" onclick="inyectar(${hab.id}, 20, 'NOMINAL')">🟢 OK (20)</button>
+                            <button class="btn-action act-fuga" onclick="inyectar(${hab.id}, 150, 'FUGA')">🚨 FUGA (150)</button>
+                            <button class="btn-action act-gnd" onclick="inyectar(${hab.id}, 0, 'FALLA GND')">🔌 GND (0)</button>
+                            <button class="btn-action act-vcc" onclick="inyectar(${hab.id}, 1023, 'CORTO 5V')">⚡ 5V (1023)</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function inyectar(id, valor, tipo) {
+            estadoLocal[id] = valor;
+            const elVal = document.getElementById(`val-zone-${id}`);
+            if(elVal) elVal.innerText = `RAW: ${valor}`;
+
+            enviar(`SET:${id}:${valor}`, `INYECCIÓN EN ${HABITACIONES[id].nombre} -> ${tipo} [VAL: ${valor}]`);
+        }
+
+        function enviar(comando, descripcionCustom) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(comando);
+                logTerminal(descripcionCustom || `COMANDO MAESTRO ENVIADO: ${comando}`);
+            } else {
+                logTerminal(`ERROR: IMPOSIBLE ENVIAR [${comando}] - SOCKET DESCONECTADO`, true);
+            }
+        }
+
+        function logTerminal(msg, esError = false) {
+            const term = document.getElementById("terminal-log");
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0] + "." + String(now.getMilliseconds()).padStart(3, '0');
+            
+            const colorClass = esError ? 'style="color:var(--red-alarm)"' : '';
+            const line = `<div class="term-line" ${colorClass}><span class="term-time">[${timeStr}]</span> <span class="term-cmd">>></span> ${msg}</div>`;
+            
+            term.innerHTML += line;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function actualizarReloj() {
+            const now = new Date();
+            document.getElementById("scada-clock").innerText = now.toTimeString().split(' ')[0];
+        }
+
+        window.onload = () => {
+            renderizarZonas();
+            conectarWS();
+            setInterval(actualizarReloj, 1000);
+            actualizarReloj();
+        };
+    </script>
+</body>
+</html>

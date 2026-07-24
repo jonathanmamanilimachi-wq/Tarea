@@ -1,7 +1,7 @@
 // ==========================================================================
 // 🛠️ CONFIGURACIÓN GLOBAL Y SEGURIDAD DEL SCADA AQUASHIELD
 // ==========================================================================
-const ESP32_IP = "192.168.4.1";
+const ESP32_IP = "10.183.179.148";
 const WEBSOCKET_URL = `ws://${ESP32_IP}:81`;
 let socket;
 
@@ -23,12 +23,13 @@ const HABITACIONES = [
     { id: "dormitorio2", nombre: "Dormitorio 2", pin: "A5" }
 ];
 
-const TAMANO_FILTRO = 10;
+const TAMANO_FILTRO = 2;
 let historialLecturas = Array(6).fill(null).map(() => []);
 
-const UMBRAL_FUGA = 350;
-const LIMITE_CORTO = 1010;
-const LIMITE_GND = 15;
+// UMBRALES DE LECTURA (Basado en ADC 0-1023 / Ajustar si tu micro envía 0-100%)
+const UMBRAL_FUGA = 25;      // Nivel a partir del cual se considera presencia de agua
+const LIMITE_CORTO = 1020;    // Detección de circuito abierto / VCC directo
+const LIMITE_GND = -1;        // Detección de cable desconectado / GND directo
 
 let bombaActiva = false;
 let alertaActivaGlobal = false;
@@ -42,18 +43,8 @@ let chipLeds = [];
 let pipeEmissiveIntensity = 0.6;
 let pipePulseDirection = 1;
 
-// Mapeo Geométrico de Pisos a escala 1:1
-const CONFIG_HABITACIONES = {
-    cocina:      { cx: -21, cz: 1,    w: 18, d: 18, name: "Cocina" },
-    dormitorio1: { cx: 0,   cz: 1,    w: 24, d: 18, name: "Dormitorio 1" },
-    bano:        { cx: 21,  cz: 1,    w: 18, d: 18, name: "Baño" },
-    comedor:     { cx: -17, cz: -22.5, w: 26, d: 15, name: "Comedor" },
-    living:      { cx: 4,   cz: -22.5, w: 16, d: 15, name: "Living" },
-    dormitorio2: { cx: 21,  cz: -22.5, w: 18, d: 15, name: "Dormitorio 2" }
-};
-
 // ==========================================================================
-// 🧭 CONTROL DE NAVEGACIÓN (CON DISPARADOR DE RESIZE PARA EL MOTOR 3D)
+// 🧭 CONTROL DE NAVEGACIÓN
 // ==========================================================================
 function cambiarPagina(paginaId) {
     try {
@@ -118,12 +109,8 @@ function procesarDatosSensores(datosRaw) {
 
         for (let i = 0; i < 6; i++) {
             let valorActual = lecturasActuales[i];
-            let estadoSensor = "OK";
-            if (valorActual >= LIMITE_CORTO || valorActual <= LIMITE_GND) {
-                estadoSensor = "ERROR";
-            }
-            estadosDiagnostico.push(estadoSensor);
 
+            // 1. Añadir al historial y promediar primero para suavizar ruido
             historialLecturas[i].push(valorActual);
             if (historialLecturas[i].length > TAMANO_FILTRO) {
                 historialLecturas[i].shift();
@@ -132,6 +119,13 @@ function procesarDatosSensores(datosRaw) {
             let suma = historialLecturas[i].reduce((a, b) => a + b, 0);
             let promedio = Math.round(suma / historialLecturas[i].length);
             promediosFiltrados.push(promedio);
+
+            // 2. Evaluar desconexión sólo si supera los límites de hardware reales
+            let estadoSensor = "OK";
+            if (promedio >= LIMITE_CORTO || promedio < LIMITE_GND) {
+                estadoSensor = "ERROR";
+            }
+            estadosDiagnostico.push(estadoSensor);
 
             const elementVal = document.getElementById(`val-${HABITACIONES[i].id}`);
             if (elementVal) elementVal.innerText = promedio;
@@ -166,11 +160,14 @@ function analizarYTomarAcciones(promedios, diagnosticos) {
         let validacionPorVecinos = false;
 
         if (maxRuido > 0 && indiceFuga !== -1) {
-            probabilidadFuga = Math.min(Math.round((maxRuido / 1023) * 100), 100);
+            // Conversión de escala adaptativa a Porcentaje (%)
+            const maxRango = maxRuido <= 100 ? 100 : 1023;
+            probabilidadFuga = Math.min(Math.round((maxRuido / maxRango) * 100), 100);
+            
             let vecinoIzquierdo = indiceFuga > 0 ? promedios[indiceFuga - 1] : 0;
             let vecinoDerecho = indiceFuga < 5 ? promedios[indiceFuga + 1] : 0;
 
-            if (vecinoIzquierdo > 150 || vecinoDerecho > 150) {
+            if (vecinoIzquierdo > (UMBRAL_FUGA * 0.4) || vecinoDerecho > (UMBRAL_FUGA * 0.4)) {
                 validacionPorVecinos = true;
                 probabilidadFuga = Math.min(probabilidadFuga + 10, 100);
             }
@@ -182,18 +179,18 @@ function analizarYTomarAcciones(promedios, diagnosticos) {
         let estadoGlobal = "NORMAL";
         if (hayFalloDiagnostico) {
             estadoGlobal = "DIAGNOSTICO_FALLIDO";
-            enviarComandoAlArduino("Y");
+            enviarComandoAlArduino("Y"); // LED Amarillo en Hardware
             alertaActivaGlobal = false;
         } else if (habitacionConFuga) {
             estadoGlobal = "FUGA_DETECTADA";
-            enviarComandoAlArduino("R");
+            enviarComandoAlArduino("R"); // LED Rojo en Hardware
             if (!alertaActivaGlobal) {
                 alertaActivaGlobal = true;
                 dispararProtocoloNotificaciones(habitacionConFuga.nombre, probabilidadFuga);
             }
         } else {
             estadoGlobal = "NORMAL";
-            enviarComandoAlArduino("G");
+            enviarComandoAlArduino("G"); // LED Verde en Hardware
             alertaActivaGlobal = false;
         }
 
@@ -206,7 +203,7 @@ function analizarYTomarAcciones(promedios, diagnosticos) {
 }
 
 // ==========================================================================
-// 🎨 ACTUALIZADORES DE INTERFAZ 2D
+// 🎨 ACTUALIZADORES DE INTERFAZ 2D Y ESTADOS
 // ==========================================================================
 function actualizarPaginaInicio(estado, diagnosticos) {
     try {
@@ -311,7 +308,8 @@ function actualizarPaginaDiagnostico(lecturas, diagnosticos) {
         HABITACIONES.forEach((hab, idx) => {
             const valorRaw = lecturas[idx];
             const estado = diagnosticos[idx];
-            const voltajeSimulado = ((valorRaw / 1023) * 5).toFixed(2);
+            const maxVal = valorRaw <= 100 ? 100 : 1023;
+            const voltajeSimulado = ((valorRaw / maxVal) * 5).toFixed(2);
             const impSimulada = estado === "ERROR" ? "∞ (Abierto)" : "Approx. 8.2 kΩ";
             const alimentacionTexto = estado === "ERROR" ? "PÉRDIDA DE SEÑAL / CORTO" : "VCC 5V NOMINAL";
 
@@ -452,7 +450,7 @@ function enviarMensajeWhatsApp(mensaje) {
 }
 
 // ==========================================================================
-// 🌐 MOTOR GRÁFICO 3D (GEMELO DIGITAL CON ENTRADAS ABIERTAS Y PLACAS AL FRENTE)
+// 🌐 MOTOR GRÁFICO 3D (GEMELO DIGITAL CON THREE.JS)
 // ==========================================================================
 function inicializarEntorno3D() {
     try {
@@ -460,7 +458,7 @@ function inicializarEntorno3D() {
         if (!container) return;
 
         if (typeof THREE === 'undefined') {
-            container.innerHTML = `<div style="color:#ff0055;padding:25px;text-align:center;">⚠️ ERROR DE LIBRERÍA 3D</div>`;
+            container.innerHTML = `<div style="color:#ff0055;padding:25px;text-align:center;">⚠️ ERROR DE LIBRERÍA THREE.JS NO DETECTADA</div>`;
             return;
         }
 
@@ -470,23 +468,23 @@ function inicializarEntorno3D() {
             container.style.position = "relative";
         }
 
-        // 1. Crear Escena con fondo Gris Acero Técnico
+        // 1. Escena
         scene3d = new THREE.Scene();
         scene3d.background = new THREE.Color(0x1e2530); 
         scene3d.fog = new THREE.Fog(0x1e2530, 80, 250);
 
-        // 2. Configurar Cámara (Ajustada en Z para encuadrar la nueva posición de la casa)
+        // 2. Cámara
         camera3d = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera3d.position.set(45, 42, 72); 
 
-        // 3. Configurar Renderizador
+        // 3. Renderizador
         renderer3d = new THREE.WebGLRenderer({ antialias: true });
         renderer3d.setSize(container.clientWidth, container.clientHeight);
         renderer3d.setPixelRatio(window.devicePixelRatio);
         container.innerHTML = ""; 
         container.appendChild(renderer3d.domElement);
 
-        // 4. Controles de Cámara (Target desplazado a Z=10 para centrar la casa)
+        // 4. Controles Orbit
         if (THREE.OrbitControls) {
             controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
             controls3d.enableDamping = true;
@@ -495,7 +493,7 @@ function inicializarEntorno3D() {
             controls3d.target.set(0, 5, 10); 
         }
 
-        // 5. Iluminación
+        // 5. Luces
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene3d.add(ambientLight);
 
@@ -503,7 +501,7 @@ function inicializarEntorno3D() {
         dirLight.position.set(20, 35, 20);
         scene3d.add(dirLight);
 
-        // 6. Plataforma de Madera Base Completa (60x60 cm)
+        // 6. Plataforma Base
         const platformGeo = new THREE.BoxGeometry(60, 0.5, 60);
         const platformMat = new THREE.MeshPhongMaterial({ color: 0x0f1522, shininess: 30 });
         const platform = new THREE.Mesh(platformGeo, platformMat);
@@ -514,7 +512,7 @@ function inicializarEntorno3D() {
         gridHelper.position.set(0, 0.05, 0);
         scene3d.add(gridHelper);
 
-        // 7. [DETALLE 3] Base Elevada de la casa (Desplazada hacia el fondo Z=10 para liberar el frente)
+        // 7. Base Elevada
         const baseGeo = new THREE.BoxGeometry(60, 7, 40);
         const baseMat = new THREE.MeshPhongMaterial({
             color: 0x111a2e,
@@ -531,14 +529,14 @@ function inicializarEntorno3D() {
         const baseWire = new THREE.LineSegments(baseEdges, new THREE.LineBasicMaterial({ color: 0x00d2ff }));
         houseBase.add(baseWire);
 
-        // 8. [DETALLE 3] Zona Electrónica Dedicada colocada AL FRENTE (Z = -20)
+        // 8. Zona Electrónica Frontal (PCB, Arduino, ESP32)
         const pcbGeo = new THREE.BoxGeometry(60, 0.2, 20);
         const pcbMat = new THREE.MeshPhongMaterial({ color: 0x0b1d12, shininess: 40 }); 
         const pcb = new THREE.Mesh(pcbGeo, pcbMat);
         pcb.position.set(0, 0.1, -20);
         scene3d.add(pcb);
 
-        // --- ARDUINO UNO EN EL FRENTE ---
+        // Arduino Uno
         const arduinoGroup = new THREE.Group();
         const boardUno = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 7), new THREE.MeshPhongMaterial({ color: 0x00558f }));
         arduinoGroup.add(boardUno);
@@ -548,30 +546,28 @@ function inicializarEntorno3D() {
         const usb = new THREE.Mesh(new THREE.BoxGeometry(3, 1.4, 2), new THREE.MeshPhongMaterial({ color: 0xaaaaaa }));
         usb.position.set(-4, 0.7, -2);
         arduinoGroup.add(usb);
-        const ledUno = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+        const ledUno = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
         ledUno.position.set(4, 0.35, 2.5);
         arduinoGroup.add(ledUno);
         chipLeds.push(ledUno);
-
         arduinoGroup.position.set(-20, 0.5, -18); 
         scene3d.add(arduinoGroup);
 
-        // --- ESP32 EN EL FRENTE ---
+        // ESP32
         const espGroup = new THREE.Group();
         const boardEsp = new THREE.Mesh(new THREE.BoxGeometry(7, 0.4, 4.5), new THREE.MeshPhongMaterial({ color: 0x111111 }));
         espGroup.add(boardEsp);
         const shield = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 3.2), new THREE.MeshPhongMaterial({ color: 0xdddddd }));
         shield.position.set(1, 0.4, 0);
         espGroup.add(shield);
-        const ledEsp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00aaff }));
+        const ledEsp = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00aaff }));
         ledEsp.position.set(-2.5, 0.35, 1.5);
         espGroup.add(ledEsp);
         chipLeds.push(ledEsp);
-
         espGroup.position.set(-5, 0.5, -18); 
         scene3d.add(espGroup);
 
-        // 9. FUNCCIÓN AUXILIAR: ETIQUETAS DE TEXTO HD
+        // 9. Generador de Etiquetas 2D en Sprite 3D
         function crearEtiquetaTexto(texto) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -595,7 +591,7 @@ function inicializarEntorno3D() {
             return sprite;
         }
 
-        // 10. RE-MAPEO DE HABITACIONES (+20 EN EL EJE Z)
+        // 10. Re-mapeo de Habitaciones y Sensores
         const NUEVA_CONFIG_HABITACIONES = {
             cocina:      { cx: -21, cz: 21,   w: 18, d: 18, name: "Cocina" },
             dormitorio1: { cx: 0,   cz: 21,   w: 24, d: 18, name: "Dormitorio 1" },
@@ -609,6 +605,7 @@ function inicializarEntorno3D() {
             const cfg = NUEVA_CONFIG_HABITACIONES[hab.id];
             if (!cfg) return;
 
+            // Malla del piso
             const geometry = new THREE.BoxGeometry(cfg.w, 0.2, cfg.d);
             const material = new THREE.MeshPhongMaterial({
                 color: 0x00f0ff,
@@ -622,14 +619,23 @@ function inicializarEntorno3D() {
             mesh.position.set(cfg.cx, 7.1, cfg.cz);
             scene3d.add(mesh);
 
+            // Label Flotante
             const etiqueta = crearEtiquetaTexto(cfg.name.toUpperCase());
             etiqueta.position.set(cfg.cx, 26, cfg.cz);
             scene3d.add(etiqueta);
 
             meshesHabitaciones[hab.id] = { mesh: mesh, etiqueta: etiqueta };
+
+            // Sensor Físico LED en Habitación
+            const sensorGeo = new THREE.SphereGeometry(0.7, 16, 16);
+            const sensorMat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8 });
+            const sensorMesh = new THREE.Mesh(sensorGeo, sensorMat);
+            sensorMesh.position.set(cfg.cx, 7.6, cfg.cz);
+            scene3d.add(sensorMesh);
+            sensorLedMeshes[hab.id] = sensorMesh;
         });
 
-        // 11. CONSTRUCCIÓN DE MUROS AJUSTADOS
+        // 11. Muros
         const wallMat = new THREE.MeshPhongMaterial({
             color: 0x0f1522, transparent: true, opacity: 0.85, shininess: 30, depthWrite: false 
         });
@@ -645,34 +651,23 @@ function inicializarEntorno3D() {
             mesh.add(wire);
         }
 
-        // Muros Perimetrales Exteriores (Desplazados +20 en Z)
-        construirMuro(60, 15, 0.4, 0, 14.5, 30);      // Fondo posterior
-        construirMuro(0.4, 15, 40, -30, 14.5, 10);    // Lateral Izquierdo
-        construirMuro(0.4, 15, 40, 30, 14.5, 10);     // Lateral Derecho
-        
-        // Muro delantero frente a las placas con la entrada principal
-        construirMuro(4, 15, 0.4, -28, 14.5, -10);     
-        construirMuro(52, 15, 0.4, 4, 14.5, -10);      
+        construirMuro(60, 15, 0.4, 0, 14.5, 30);      // Fondo
+        construirMuro(0.4, 15, 40, -30, 14.5, 10);    // Lat Izq
+        construirMuro(0.4, 15, 40, 30, 14.5, 10);     // Lat Der
+        construirMuro(4, 15, 0.4, -28, 14.5, -10);    // Frontal Izq
+        construirMuro(52, 15, 0.4, 4, 14.5, -10);     // Frontal Der
 
-        // Muros divisorios de Pasillos (Z = 12 y Z = 5)
-        // [DETALLE 1] Removido muro de entrada a cocina. Solo se deja la sección de Dormitorio 1 y Baño
-        construirMuro(10, 15, 0.4, -7, 14.5, 12);     // Cubre lado izquierdo de Dormitorio 1
-        construirMuro(17, 15, 0.4, 10.5, 14.5, 12);   // Cubre lado derecho de Dormitorio 1 e inicio Baño
-        construirMuro(7, 15, 0.4, 26.5, 14.5, 12);    // Fondo del baño
+        // Divisorios
+        construirMuro(10, 15, 0.4, -7, 14.5, 12);
+        construirMuro(17, 15, 0.4, 10.5, 14.5, 12);
+        construirMuro(7, 15, 0.4, 26.5, 14.5, 12);
+        construirMuro(13, 15, 0.4, 12.5, 14.5, 5);
+        construirMuro(7, 15, 0.4, 26.5, 14.5, 5);
+        construirMuro(0.4, 15, 18, -12, 14.5, 21);
+        construirMuro(0.4, 15, 18, 12, 14.5, 21);
+        construirMuro(0.4, 15, 15, 12, 14.5, -2.5);
 
-        // [DETALLE 1] Removida pared de entrada al Living en Z=5 para unificar con Comedor y Cocina
-        construirMuro(13, 15, 0.4, 12.5, 14.5, 5);    
-        construirMuro(7, 15, 0.4, 26.5, 14.5, 5);     
-
-        // Muros divisorios Transversales
-        construirMuro(0.4, 15, 18, -12, 14.5, 21);    // Entre Cocina y Dormitorio 1
-        
-        // [DETALLE 2] Reparado el muro divisorio entre Dormitorio 1 y Baño. Longitud extendida a 18 (completo de extremo a extremo)
-        construirMuro(0.4, 15, 18, 12, 14.5, 21);     
-        
-        construirMuro(0.4, 15, 15, 12, 14.5, -2.5);   // Entre Living y Dormitorio 2
-
-        // 12. MODELADO DE LAS PUERTAS ACTIVAS
+        // 12. Puertas
         function crearPuertaEnMuro(x, z, rotY, esPrincipal = false) {
             const pGroup = new THREE.Group();
             const colorMarco = esPrincipal ? 0xff9900 : 0x00f0ff;
@@ -697,25 +692,22 @@ function inicializarEntorno3D() {
             scene3d.add(pGroup);
         }
 
-        // [DETALLE 3] Puerta principal reubicada en Z=-10 mirando directamente al frente hacia el Arduino
         crearPuertaEnMuro(-24, -10, 0, true);   
-        
-        // Puertas internas de espacios cerrados independientes
-        crearPuertaEnMuro(0, 12, 0);           // Dormitorio 1
-        crearPuertaEnMuro(21, 12, 0);          // Baño
-        crearPuertaEnMuro(21, 5, 0);           // Dormitorio 2
+        crearPuertaEnMuro(0, 12, 0);          
+        crearPuertaEnMuro(21, 12, 0);         
+        crearPuertaEnMuro(21, 5, 0);          
 
-        // 13. TRAZADO DE TUBERÍA GLOWING (Ajustado +20 en Z)
+        // 13. Tubería Neón Conectada
         const pipePoints = [
             { x: -28, y: 3.5, z: -5 },   
             { x: 28,  y: 3.5, z: -5 },   
-            { x: 28,  y: 3.5, z: 21 },     
+            { x: 28,  y: 3.5, z: 21 },    
             { x: 29.5, y: 3.5, z: 21 },    
             { x: 29.5, y: 15,  z: 21 },    
             { x: 29.5, y: 15,  z: 25 },    
             { x: 29.5, y: 3.5, z: 25 },    
-            { x: 28,  y: 3.5, z: 25 },     
-            { x: -28, y: 3.5, z: 25 },     
+            { x: 28,  y: 3.5, z: 25 },    
+            { x: -28, y: 3.5, z: 25 },    
             { x: -29.5, y: 3.5, z: 25 },   
             { x: -29.5, y: 15,  z: 25 },   
             { x: -29.5, y: 15,  z: 21 },   
@@ -728,126 +720,65 @@ function inicializarEntorno3D() {
             const v1 = new THREE.Vector3(p1.x, p1.y, p1.z);
             const v2 = new THREE.Vector3(p2.x, p2.y, p2.z);
             const distance = v1.distanceTo(v2);
+            if (distance === 0) return;
+
             const geometry = new THREE.CylinderGeometry(0.35, 0.35, distance, 8);
             const material = new THREE.MeshPhongMaterial({
                 color: colorHex, emissive: colorHex, emissiveIntensity: 0.6, transparent: true, opacity: 0.85
             });
             const cylinder = new THREE.Mesh(geometry, material);
-            cylinder.renderOrder = 2; 
-            
-            const position = v2.clone().add(v1).multiplyScalar(0.5);
-            cylinder.position.copy(position);
-            const direction = v2.clone().sub(v1).normalize();
-            const up = new THREE.Vector3(0, 1, 0);
-            cylinder.quaternion.setFromUnitVectors(up, direction);
+
+            const dir = new THREE.Vector3().subVectors(v2, v1);
+            cylinder.position.copy(v1).addScaledVector(dir, 0.5);
+            cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+
             scene3d.add(cylinder);
             pipeMeshes.push(cylinder);
         }
 
-        function crearCodo(pos, colorHex) {
-            const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.45, 8, 8),
-                new THREE.MeshPhongMaterial({ color: colorHex, emissive: colorHex, emissiveIntensity: 0.6 })
-            );
-            sphere.renderOrder = 2; 
-            sphere.position.set(pos.x, pos.y, pos.z);
-            scene3d.add(sphere);
-            pipeMeshes.push(sphere);
-        }
-
         for (let i = 0; i < pipePoints.length - 1; i++) {
-            crearTubo(pipePoints[i], pipePoints[i+1], 0x00f0ff);
-            crearCodo(pipePoints[i], 0x00f0ff);
-        }
-        crearCodo(pipePoints[pipePoints.length - 1], 0x00f0ff);
-
-        // 14. INSTALACIÓN DE SENSORES FÍSICOS (Ajustado +20 en Z)
-        function crearModuloSensor(habId, x, y, z) {
-            const sGroup = new THREE.Group();
-            const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 1.5), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
-            sGroup.add(base);
-            const led = new THREE.Mesh(
-                new THREE.SphereGeometry(0.25, 8, 8),
-                new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8 })
-            );
-            led.position.y = 0.55;
-            sGroup.add(led);
-            sensorLedMeshes[habId] = led;
-            sGroup.position.set(x, y, z);
-            scene3d.add(sGroup);
+            crearTubo(pipePoints[i], pipePoints[i + 1], 0x00f0ff);
         }
 
-        crearModuloSensor("comedor", -17, 3.5, -5);
-        crearModuloSensor("living", 4, 3.5, -5);
-        crearModuloSensor("dormitorio2", 21, 3.5, -5);
-        crearModuloSensor("bano", 29.5, 15, 23);       
-        crearModuloSensor("dormitorio1", 0, 3.5, 25);
-        crearModuloSensor("cocina", -29.5, 15, 23);     
-
-        // 15. LOOP DE ANIMACIÓN Y RENDERIZADO
-        function animate() {
-            requestAnimationFrame(animate);
+        // Bucle de Animación 3D
+        function animate3d() {
+            requestAnimationFrame(animate3d);
             if (controls3d) controls3d.update();
 
-            chipLeds.forEach(led => {
-                if (Math.random() > 0.96) {
-                    led.material.color.setHex(led.material.color.getHex() === 0x000000 ? 0x00ff00 : 0x000000);
-                }
+            // Pulso de luminosidad en tuberías
+            pipeEmissiveIntensity += 0.008 * pipePulseDirection;
+            if (pipeEmissiveIntensity > 0.85) pipePulseDirection = -1;
+            if (pipeEmissiveIntensity < 0.35) pipePulseDirection = 1;
+
+            pipeMeshes.forEach(pipe => {
+                if (pipe.material) pipe.material.emissiveIntensity = pipeEmissiveIntensity;
             });
 
-            if (alertaActivaGlobal) {
-                pipeEmissiveIntensity += 0.08 * pipePulseDirection;
-                if (pipeEmissiveIntensity > 1.8) pipePulseDirection = -1;
-                if (pipeEmissiveIntensity < 0.2) pipePulseDirection = 1;
-                
-                pipeMeshes.forEach(mesh => {
-                    if (mesh.material) {
-                        mesh.material.color.setHex(0xff0033); 
-                        mesh.material.emissive.setHex(0xff0033);
-                        mesh.material.emissiveIntensity = pipeEmissiveIntensity;
-                    }
-                });
-            } else {
-                pipeMeshes.forEach(mesh => {
-                    if (mesh.material) {
-                        mesh.material.color.setHex(0x00f0ff); 
-                        mesh.material.emissive.setHex(0x00f0ff);
-                        mesh.material.emissiveIntensity = 0.6;
-                    }
-                });
-            }
-
-            if (renderer3d && scene3d && camera3d) {
-                renderer3d.render(scene3d, camera3d);
-            }
+            renderer3d.render(scene3d, camera3d);
         }
-        animate();
+        animate3d();
 
-        window.addEventListener("resize", () => {
-            if (!container || !camera3d || !renderer3d) return;
-            const w = container.clientWidth || 800;
-            const h = container.clientHeight || 500;
+        // Listener de Redimensionamiento
+        window.addEventListener('resize', () => {
+            if (!container || !renderer3d || !camera3d) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w === 0 || h === 0) return;
             camera3d.aspect = w / h;
             camera3d.updateProjectionMatrix();
             renderer3d.setSize(w, h);
         });
 
-        console.log("[3D-ENGINE] Modelo optimizado y reubicado con éxito.");
-    } catch (error) {
-        console.error("[3D-ENGINE-ERROR]", error);
+    } catch (err) {
+        console.error("[3D-INIT-ERROR]", err);
     }
 }
-// ==========================================================================
-// 🚀 REGISTRO GLOBAL E INICIALIZACIÓN UNIFICADA
-// ==========================================================================
-window.simular = procesarDatosSensores;
-window.cambiarPagina = cambiarPagina;
-window.controlarBomba = controlarBomba;
 
-window.onload = () => {
-    console.log("[AQUASHIELD] Iniciando...");
+// ==========================================================================
+// 🚀 INICIALIZACIÓN AUTOMÁTICA DEL SISTEMA
+// ==========================================================================
+document.addEventListener("DOMContentLoaded", () => {
     conectarWebSocket();
     solicitarPermisosNotificacion();
-    inicializarEntorno3D(); 
-    procesarDatosSensores("0,0,0,0,0,0"); 
-};
+    inicializarEntorno3D();
+});
