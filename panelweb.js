@@ -1,7 +1,7 @@
 // ==========================================================================
 // 🛠️ CONFIGURACIÓN GLOBAL Y SEGURIDAD DEL SCADA AQUASHIELD
 // ==========================================================================
-const ESP32_IP = "10.183.179.148";
+const ESP32_IP = "10.94.72.148";
 const WEBSOCKET_URL = `ws://${ESP32_IP}:81`;
 let socket;
 
